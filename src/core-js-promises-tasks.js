@@ -17,8 +17,17 @@
  * 0    => promise that will be fulfilled
  * 1    => promise that will be fulfilled
  */
-function getPromise(/* number */) {
-  throw new Error('Not implemented');
+// function getPromise(/* number */) {
+//   throw new Error('Not implemented');
+// }
+function getPromise(number) {
+  return new Promise((resolve, reject) => {
+    if (number >= 0) {
+      resolve(number);
+    } else if (number < 0) {
+      reject(new Error('Number is negative'));
+    }
+  });
 }
 
 /**
@@ -33,8 +42,17 @@ function getPromise(/* number */) {
  * Promise.resolve('success') => promise that will be fulfilled with 'success' value
  * Promise.reject('fail')     => promise that will be fulfilled with 'fail' value
  */
-function getPromiseResult(/* source */) {
-  throw new Error('Not implemented');
+// function getPromiseResult(/* source */) {
+//   throw new Error('Not implemented');
+// }
+function getPromiseResult(source) {
+  return source
+    .then(() => {
+      return 'success';
+    })
+    .catch(() => {
+      return 'fail';
+    });
 }
 
 /**
@@ -50,8 +68,13 @@ function getPromiseResult(/* source */) {
  * [Promise.resolve(1), Promise.reject(2), Promise.resolve(3)]  => Promise fulfilled with 1
  * [Promise.reject(1), Promise.reject(2), Promise.reject(3)]    => Promise rejected
  */
-function getFirstResolvedPromiseResult(/* promises */) {
-  throw new Error('Not implemented');
+// function getFirstResolvedPromiseResult(/* promises */) {
+//   throw new Error('Not implemented');
+// }
+function getFirstResolvedPromiseResult(promises) {
+  return Promise.race(
+    promises.map((promise) => promise.catch(() => new Promise(() => {})))
+  );
 }
 
 /**
@@ -73,8 +96,35 @@ function getFirstResolvedPromiseResult(/* promises */) {
  * [promise3, promise6, promise2] => Promise rejected with 2
  * [promise3, promise4, promise6] => Promise rejected with 6
  */
-function getFirstPromiseResult(/* promises */) {
-  throw new Error('Not implemented');
+// function getFirstPromiseResult(/* promises */) {
+//   throw new Error('Not implemented');
+// }
+async function getFirstPromiseResult(promises) {
+  const wrappedPromises = promises.map((prom) =>
+    prom.then(
+      (val) =>
+        Promise.reject(
+          new Error(JSON.stringify({ status: 'fulfilled', value: val }))
+        ),
+      (err) =>
+        Promise.reject(
+          new Error(JSON.stringify({ status: 'rejected', value: err }))
+        )
+    )
+  );
+
+  try {
+    await Promise.race(wrappedPromises);
+  } catch (result) {
+    if (result.message) {
+      const { status, value } = JSON.parse(result.message);
+
+      if (status === 'fulfilled' || status === 'rejected') {
+        return value;
+      }
+    }
+  }
+  throw new Error('promise is not found');
 }
 
 /**
@@ -88,8 +138,28 @@ function getFirstPromiseResult(/* promises */) {
  * [Promise.resolve(1), Promise.resolve(2), Promise.resolve(3)] => Promise fulfilled with [1, 2, 3]
  * [Promise.resolve(1), Promise.reject(2), Promise.resolve(3)] => Promise rejected with 2
  */
-function getAllOrNothing(/* promises */) {
-  throw new Error('Not implemented');
+// function getAllOrNothing(/* promises */) {
+//   throw new Error('Not implemented');
+// }
+function getAllOrNothing(promises) {
+  return new Promise((resolve, reject) => {
+    let countProm = promises.length;
+    const results = new Array(countProm);
+
+    if (promises.length === 0) resolve(results);
+
+    promises.forEach((promise, index) => {
+      Promise.resolve(promise)
+        .then((value) => {
+          results[index] = value;
+          countProm -= 1;
+          if (countProm === 0) resolve(results);
+        })
+        .catch((error) => {
+          reject(error);
+        });
+    });
+  });
 }
 
 /**
@@ -104,8 +174,11 @@ function getAllOrNothing(/* promises */) {
  * [Promise.resolve(1), Promise.resolve(2), Promise.resolve(3)] => Promise fulfilled with [1, 2, 3]
  * [Promise.resolve(1), Promise.reject(2), Promise.resolve(3)]  => Promise fulfilled with [1, null, 3]
  */
-function getAllResult(/* promises */) {
-  throw new Error('Not implemented');
+// function getAllResult(/* promises */) {
+//   throw new Error('Not implemented');
+// }
+function getAllResult(promises) {
+  return Promise.all(promises.map((promise) => promise.catch(() => null)));
 }
 
 /**
@@ -126,9 +199,66 @@ function getAllResult(/* promises */) {
  * [promise1, promise4, promise3] => Promise.resolved('104030')
  * [promise1, promise4, promise3, promise2] => Promise.resolved('10403020')
  */
-function queuPromises(/* promises */) {
-  throw new Error('Not implemented');
+async function queuPromises(promises) {
+  let result = '';
+
+  try {
+    result = await promises.reduce(async (sum, current) => {
+      const prevSum = await sum;
+      const currentValue = await current;
+      return prevSum + currentValue;
+    }, Promise.resolve(''));
+  } catch (error) {
+    result = '';
+  }
+
+  return result;
 }
+
+// function queuPromises(/* promises */) {
+//   throw new Error('Not implemented');
+// }
+// async function queuPromises(promises) {
+//   const results = await Promise.allSettled(promises);
+//   const result = results.reduce((sum, current) => {
+//     return sum + current;
+//   }, 0);
+//   return result;
+// }
+// async function queuPromises(promises) {
+//   let result = '';
+//   for (let i = 0; i < promises.length; i += 1) {
+//     try {
+//       const value = await promises[i];
+//       result += value;
+//     } catch (error) {
+//       console.error(error); // handle the error appropriately
+//     }
+//   }
+//   return result;
+// }
+// async function queuPromises(promises) {
+//   let result = '';
+//   for (const promise of promises) {
+//     result += await promise;
+//   }
+//   return result;
+// }
+
+// async function main() {
+//   async function mockAsyncFunction(value) {
+//     await new Promise((resolve) => setTimeout(resolve, 1000));
+//     return `Result from ${value}\n`;
+//   }
+
+//   const promises = Array.from({ length: 5 }, (_, i) =>
+//     mockAsyncFunction(i + 1)
+//   );
+//   const concatenatedResults = await queuPromises(promises);
+//   console.log(concatenatedResults);
+// }
+
+// main();
 
 module.exports = {
   getPromise,
